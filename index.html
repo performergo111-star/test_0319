@@ -93,7 +93,8 @@
             
             <!-- Initial Start Screen Overlay -->
             <div id="screen-start" class="absolute inset-0 flex flex-col items-center justify-center bg-white/30 backdrop-blur-sm z-40 p-6 text-center">
-                <div class="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center animate-bounce shadow-inner mb-4 text-6xl">🍓</div>
+                <!-- 원 내부 딸기 위치 수정을 위해 pb-2 추가 및 정렬 조정 -->
+                <div class="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center animate-bounce shadow-inner mb-4 text-6xl pb-2">🍓</div>
                 <h1 class="text-5xl font-normal text-rose-400 mb-4 title-font drop-shadow-sm">베리 팡팡!</h1>
                 <p class="text-gray-400 mb-8 text-lg">나오는 딸기를 터치하세요!<br><span class="text-xs opacity-60">(Space 키로 시작 가능)</span></p>
                 <button onclick="startGame()" class="bg-rose-400 hover:scale-105 active:scale-95 transition-transform text-white px-10 py-4 rounded-xl text-xl font-bold shadow-md border-b-4 border-rose-600">게임 시작</button>
