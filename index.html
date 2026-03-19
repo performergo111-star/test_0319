@@ -1,0 +1,320 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Trophy, Timer, Play, RotateCcw, Bomb, Star, Heart, Home } from 'lucide-react';
+
+const App = () => {
+  // Game States
+  const [gameState, setGameState] = useState('START'); // START, PLAYING, END
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [items, setItems] = useState([]);
+  const [highScore, setHighScore] = useState(0);
+  
+  const gameContainerRef = useRef(null);
+  const timerRef = useRef(null);
+  const spawnRef = useRef(null);
+
+  // Constants
+  const GAME_DURATION = 30;
+  const ITEM_LIFESPAN = 1100;
+  const SPAWN_RATE = 650;
+
+  // Start Game
+  const startGame = () => {
+    setScore(0);
+    setTimeLeft(GAME_DURATION);
+    setGameState('PLAYING');
+    setItems([]);
+  };
+
+  // Go to Main Menu
+  const goToMain = () => {
+    setGameState('START');
+    setScore(0);
+    setItems([]);
+  };
+
+  // End Game
+  const endGame = useCallback(() => {
+    setGameState('END');
+    setItems([]);
+    if (score > highScore) {
+      setHighScore(score);
+    }
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (spawnRef.current) clearInterval(spawnRef.current);
+  }, [score, highScore]);
+
+  // Timer Logic
+  useEffect(() => {
+    if (gameState === 'PLAYING') {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            endGame();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timerRef.current);
+    }
+  }, [gameState, endGame]);
+
+  // Spawning Logic
+  const spawnItem = useCallback(() => {
+    if (gameState !== 'PLAYING') return;
+
+    const id = Date.now() + Math.random();
+    const typeRand = Math.random();
+    let type = 'STRAWBERRY'; 
+    
+    if (typeRand > 0.88) type = 'GOLDEN'; 
+    else if (typeRand > 0.78) type = 'BOMB'; 
+
+    const newItem = {
+      id,
+      type,
+      x: Math.random() * 85 + 7.5,
+      y: Math.random() * 75 + 12.5,
+      rotation: Math.random() * 40 - 20,
+    };
+
+    setItems((prev) => [...prev, newItem]);
+
+    setTimeout(() => {
+      setItems((prev) => prev.filter((item) => item.id !== id));
+    }, ITEM_LIFESPAN);
+  }, [gameState]);
+
+  useEffect(() => {
+    if (gameState === 'PLAYING') {
+      spawnRef.current = setInterval(spawnItem, SPAWN_RATE);
+      return () => clearInterval(spawnRef.current);
+    }
+  }, [gameState, spawnItem]);
+
+  // Handle Input (Touch/Click)
+  const handleItemClick = (e, item) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (gameState !== 'PLAYING') return;
+
+    if (item.type === 'BOMB') {
+      setScore((prev) => Math.max(0, prev - 5));
+    } else if (item.type === 'GOLDEN') {
+      setScore((prev) => prev + 5);
+    } else {
+      setScore((prev) => prev + 1);
+    }
+
+    setItems((prev) => prev.filter((i) => i.id !== item.id));
+  };
+
+  // Keyboard Support
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.code === 'Space' || e.code === 'Enter') {
+        if (gameState === 'START' || gameState === 'END') {
+          startGame();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [gameState]);
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-rose-50 p-4 select-none overflow-hidden font-sans">
+      <style>{`
+        @import url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/DungGeunMo.woff');
+        @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap');
+        
+        .cute-font { 
+          font-family: 'DungGeunMo', sans-serif;
+          letter-spacing: -0.5px;
+        }
+
+        .title-font {
+          font-family: 'Black Han Sans', sans-serif;
+          letter-spacing: -1px;
+          -webkit-text-stroke: 1.5px white;
+          paint-order: stroke fill;
+        }
+
+        .pop-animation { animation: pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop {
+          0% { transform: scale(0) translate(-50%, -50%); opacity: 0; }
+          100% { transform: scale(1) translate(-50%, -50%); opacity: 1; }
+        }
+
+        .game-cursor {
+          cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%23f43f5e" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="m13 13 6 6"></path></svg>'), auto;
+        }
+
+        .btn-hover {
+          transition: all 0.2s;
+        }
+        .btn-hover:hover {
+          transform: translateY(-2px);
+          filter: brightness(1.05);
+        }
+      `}</style>
+
+      {/* Header Info */}
+      <div className="w-full max-w-xl flex justify-between items-center mb-6 bg-white p-5 rounded-[1.5rem] shadow-md border-b-4 border-rose-100">
+        <div className="flex flex-col items-center flex-1">
+          <div className="flex items-center gap-1 text-rose-400 mb-1">
+            <Timer size={14} strokeWidth={3} />
+            <span className="text-[10px] font-bold cute-font uppercase">Time Left</span>
+          </div>
+          <span className={`text-2xl font-bold cute-font ${timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-gray-700'}`}>
+            {String(timeLeft).padStart(2, '0')}s
+          </span>
+        </div>
+        
+        <div className="flex flex-col items-center flex-1 border-x border-rose-50 px-2 text-center">
+          <span className="text-[10px] text-rose-300 font-bold cute-font uppercase tracking-widest mb-1">Score</span>
+          <span className="text-4xl md:text-5xl font-bold text-rose-500 cute-font leading-none">{score}</span>
+        </div>
+
+        <div className="flex flex-col items-center flex-1">
+          <div className="flex items-center gap-1 text-yellow-500 mb-1">
+            <Trophy size={14} strokeWidth={3} />
+            <span className="text-[10px] font-bold cute-font uppercase">Best</span>
+          </div>
+          <span className="text-2xl font-bold cute-font text-gray-700">{highScore}</span>
+        </div>
+      </div>
+
+      {/* Game Canvas */}
+      <div 
+        ref={gameContainerRef}
+        className="relative w-full max-w-xl aspect-[4/5] md:aspect-square bg-white rounded-[2.5rem] shadow-2xl border-[8px] border-white overflow-hidden ring-1 ring-rose-100 game-cursor"
+        style={{ 
+          backgroundImage: 'linear-gradient(#fff5f5 1px, transparent 1px), linear-gradient(90deg, #fff5f5 1px, transparent 1px)', 
+          backgroundSize: '40px 40px' 
+        }}
+      >
+        {gameState === 'START' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/40 backdrop-blur-md z-20 p-8 text-center animate-in fade-in duration-500">
+            <div className="relative mb-6">
+              <div className="w-32 h-32 bg-rose-100 rounded-full flex items-center justify-center animate-bounce shadow-inner">
+                <span className="text-7xl text-[Image of Strawberry]">🍓</span>
+              </div>
+              <Heart className="absolute -top-1 -right-1 text-rose-400 fill-rose-400 animate-pulse" size={32} />
+            </div>
+            
+            <h1 className="text-6xl md:text-7xl font-normal text-rose-500 mb-6 title-font drop-shadow-[0_4px_0_rgba(244,63,94,0.3)]">
+              베리 팡팡!
+            </h1>
+
+            <p className="text-gray-500 mb-10 cute-font text-xl leading-relaxed">
+              딸기를 클릭해서 높은 점수를 얻으세요!<br/>
+              <span className="text-sm opacity-70">(Space를 눌러 시작 가능)</span>
+            </p>
+            <button 
+              onClick={startGame}
+              className="btn-hover flex items-center gap-3 bg-rose-500 text-white px-14 py-5 rounded-2xl text-2xl font-bold shadow-lg shadow-rose-200 border-b-4 border-rose-700 cute-font"
+            >
+              <Play className="fill-current" size={24} /> 게임 시작
+            </button>
+          </div>
+        )}
+
+        {gameState === 'PLAYING' && items.map((item) => (
+          <button
+            key={item.id}
+            onMouseDown={(e) => handleItemClick(e, item)}
+            className="absolute pop-animation focus:outline-none game-cursor"
+            style={{ 
+                left: `${item.x}%`, 
+                top: `${item.y}%`, 
+                transform: `translate(-50%, -50%) rotate(${item.rotation}deg)`,
+                zIndex: 10
+            }}
+          >
+            <div className="relative transition-all active:scale-125 hover:scale-110 active:brightness-125">
+              {item.type === 'STRAWBERRY' && (
+                <div className="text-6xl md:text-7xl drop-shadow-md text-[Image of Strawberry]">🍓</div>
+              )}
+              {item.type === 'GOLDEN' && (
+                <div className="relative">
+                  <Star className="absolute -top-2 -right-2 w-6 h-6 text-yellow-400 fill-yellow-400 animate-spin" />
+                  <div className="text-7xl md:text-8xl drop-shadow-lg brightness-110 saturate-150 text-[Image of Strawberry]">🍓</div>
+                </div>
+              )}
+              {item.type === 'BOMB' && (
+                <div className="text-6xl md:text-7xl drop-shadow-md animate-pulse">
+                   <Bomb className="text-gray-700 w-16 h-16" />
+                </div>
+              )}
+            </div>
+          </button>
+        ))}
+
+        {gameState === 'END' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/95 z-20 p-8 text-center animate-in fade-in zoom-in duration-300">
+            <h2 className="text-4xl font-bold text-gray-800 mb-2 cute-font">RESULTS</h2>
+            <div className="my-8 p-10 bg-rose-50 rounded-[3rem] border-2 border-rose-100 w-full max-w-[280px] shadow-inner">
+              <p className="text-rose-400 font-bold cute-font text-sm mb-2 uppercase tracking-widest">Final Score</p>
+              <p className="text-7xl font-bold text-rose-600 cute-font tracking-tighter">{score}</p>
+            </div>
+            
+            {score >= highScore && score > 0 && (
+              <div className="mb-8 text-yellow-600 font-bold cute-font text-xl flex items-center gap-2 animate-bounce text-[Image of Trophy]">
+                <Trophy size={24} /> NEW RECORD!
+              </div>
+            )}
+            
+            <div className="flex flex-col w-full gap-4 max-w-[260px]">
+              <button 
+                onClick={startGame}
+                className="btn-hover flex items-center justify-center gap-3 bg-rose-500 text-white px-6 py-5 rounded-2xl text-2xl font-bold shadow-lg border-b-4 border-rose-700 cute-font"
+              >
+                <RotateCcw size={24} /> 다시 도전
+              </button>
+              
+              <button 
+                onClick={goToMain}
+                className="btn-hover flex items-center justify-center gap-3 bg-white text-gray-500 px-6 py-4 rounded-2xl text-xl font-bold border-b-4 border-gray-200 cute-font"
+              >
+                <Home size={20} /> 메인 메뉴
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer Info */}
+      <div className="mt-8 flex flex-wrap justify-center items-center gap-4 md:gap-8 w-full max-w-xl cute-font bg-white/50 py-4 px-4 rounded-2xl border border-rose-100/50 shadow-sm">
+        <div className="flex items-center gap-2 group">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center border border-rose-50 group-hover:scale-110 transition-transform">🍓</div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-rose-300 uppercase leading-none">Basic</span>
+            <span className="text-xs md:text-sm font-bold text-rose-500">+1 Point</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 group">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center border border-rose-50 group-hover:scale-110 transition-transform text-[Image of Star]">✨</div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-yellow-400 uppercase leading-none">Golden</span>
+            <span className="text-xs md:text-sm font-bold text-yellow-500">+5 Points</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 group">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center border border-rose-50 group-hover:scale-110 transition-transform text-[Image of Bomb]">💣</div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-gray-300 uppercase leading-none">Danger</span>
+            <span className="text-xs md:text-sm font-bold text-gray-500">-5 Points</span>
+          </div>
+        </div>
+      </div>
+      
+      <p className="mt-6 text-rose-300 cute-font text-xs opacity-60 hidden md:block">
+        Tip: PC에서는 마우스 클릭과 함께 Space 키를 활용해 빠르게 시작할 수 있어요!
+      </p>
+    </div>
+  );
+};
+
+export default App;
